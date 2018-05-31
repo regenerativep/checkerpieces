@@ -1,0 +1,22 @@
+{
+  "name": "checkerpieces",
+  "version": "1.0.0",
+  "description": "trying to make a currency",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/regenerativep/checkerpieces.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/regenerativep/checkerpieces/issues"
+  },
+  "homepage": "https://github.com/regenerativep/checkerpieces#readme",
+  "dependencies": {
+    "discord.js": "^11.3.2"
+  }
+}
