@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/regenerativep/checkerpieces#readme",
   "dependencies": {
-    "discord.js": "^11.3.2"
+    "discord.js": "^11.3.2",
+    "node-cleanup": "^2.1.2"
   }
 }

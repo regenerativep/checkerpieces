@@ -2,14 +2,16 @@ const FS = require("fs");
 const PATH = require("path");
 
 const Discord = require("discord.js");
+const Cleanup = require("node-cleanup");
 const Bank = require("./bank.js");
 
 const commandTrigger = "$";
+const tokenpath = PATH.join(__dirname, "token.txt");
+const bankpath = PATH.join(__dirname, "bank.json");
 
 var getToken = function(cb)
 {
-    var tokenpath = PATH.join(__dirname, "token.txt");
-    FS.readFile(tokenpath, {encoding: "utf-8"}, function(err, data)
+    FS.readFile(tokenpath, "utf8", function(err, data)
     {
         if(err)
         {
@@ -22,15 +24,53 @@ var getToken = function(cb)
 };
 
 var bank = new Bank.Bank();
+try
+{
+    bank.load(JSON.parse(FS.readFileSync(bankpath)));
+}
+catch(e)
+{
+    console.log("failed to load bank");
+}
+bank.on("save", function() { saveBank(false) } );
+function saveBank(showSaveMessage)
+{
+    FS.writeFile(bankpath, JSON.stringify(bank.save()), "utf8", function(err) {
+        if(showSaveMessage)
+        {
+            if(!err)
+            {
+                console.log("successfully saved bank");
+            }
+            else
+            {
+                console.log("failed to save bank");
+            }
+        }
+    });
+}
 
 var client = new Discord.Client();
-var historyChannel;
 client.on("ready", function ()
 {
     console.log("logged in as " + client.user.tag);
+    Cleanup(function(eC, sig) {
+        client.destroy();
+    });
 });
 client.on("message", function(msg)
 {
+    if(msg.channel.type != "dm")
+    {
+        if(msg.channel.type != "text")
+        {
+            return; //no
+        }
+        else if(msg.channel.name != "bot")
+        {
+            return;
+        }
+    }
     var message = msg.content;
     var username = msg.author.tag;
     if(message.substring(0, commandTrigger.length) === commandTrigger)
@@ -38,7 +78,7 @@ client.on("message", function(msg)
         //we have a command
         message = message.substring(commandTrigger.length);
         var parts = message.split(" ");
-        switch(parts[0])
+        switch(parts[0].toLowerCase())
         {
             case "register": {
                 if(parts.length != 1)
@@ -53,6 +93,7 @@ client.on("message", function(msg)
                     break;
                 }
                 msg.channel.send("you have been registered (" + acc.owner + ")");
+                saveBank();
                 break;
             }
             case "transfer": {
@@ -61,7 +102,7 @@ client.on("message", function(msg)
                     msg.channel.send("command \"transfer\" takes [amount: int] [recipient: string]")
                     break;
                 }
-                var amount = parseInt(parts[1]);
+                var amount = parseFloat(parts[1]);
                 var recipient = parts[2];
                 var trans = bank.transfer(username, recipient, amount);
                 if(trans == null)
@@ -69,10 +110,7 @@ client.on("message", function(msg)
                     msg.channel.send("failed to find an account under your name. (" + username + ")");
                     break;
                 }
-                if(historyChannel != null)
-                {
-                    historyChannel.send(trans.toString());
-                }
+                console.log(trans.toString());
                 if(trans.perform())
                 {
                     msg.channel.send("successfully transferred value");
@@ -81,6 +119,7 @@ client.on("message", function(msg)
                 {
                     msg.channel.send("failed to transfer; likely insufficient value");
                 }
+                saveBank();
                 break;
             }
             case "addvalue": {
@@ -95,9 +134,10 @@ client.on("message", function(msg)
                     msg.channel.send("failed to find an account under your name. (" + username + ")");
                     break;
                 }
-                var amount = parseInt(parts[1]);
+                var amount = parseFloat(parts[1]);
                 account.value += amount;
                 msg.channel.send("added " + amount + " to your account (" + account.owner + ")");
+                saveBank();
                 break;
             }
             case "getvalue": {

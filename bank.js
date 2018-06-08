@@ -1,12 +1,11 @@
 "use strict";
-/*class Account
+
+const EventEmitter = require("events");
+
+function accountToString(acc)
 {
-    constuctor(owner)
-    {
-        this.owner = owner;
-        this.value = 0;
-    }
-}*/
+    return acc.owner + " (" + acc.value + "cP)";
+}
 function createAccount(owner)
 {
     return {
@@ -37,15 +36,33 @@ class Transaction
     }
     toString()
     {
-        return "Transaction:\n   from: " + this.sender + "\n   to: " + this.sendee + "\n   amount: " + this.amount;
+        return "Transaction:\n   from: " + accountToString(this.sender) + "\n   to: " + accountToString(this.sendee) + "\n   amount: " + this.amount;
     }
 }
-class Bank
+class Bank extends EventEmitter
 {
     constructor()
     {
+        super();
         this.accounts = [];
         this.transactions = [];
+        var parent = this;
+        setInterval(function() {
+            parent.addToAllAccounts(0.0003, parent);
+        }, 1000);
+    }
+    addToAllAccounts(value, parent)
+    {
+        for(var i = 0; i < this.accounts.length; i++)
+        {
+            parent.accounts[i].value += value;
+        }
+        parent.emit("save");
+    }
+    load(obj)
+    {
+        this.accounts = obj.accounts;
+        this.transactions = obj.transactions;
     }
     register(name)
     {
@@ -60,6 +77,7 @@ class Bank
         var acc = createAccount(name);
         //console.log(acc);
         this.accounts.push(acc);
+        this.emit("register", acc);
         return acc;
     }
     getAccount(name)
@@ -84,7 +102,15 @@ class Bank
         }
         var trans = new Transaction(a, b, amount);
         this.transactions.push(trans);
+        this.emit("transaction", trans);
         return trans;
+    }
+    save()
+    {
+        return {
+            transactions: this.transactions,
+            accounts: this.accounts
+        };
     }
 }
 
