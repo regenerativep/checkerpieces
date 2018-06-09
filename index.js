@@ -8,7 +8,7 @@ const Bank = require("./bank.js");
 const commandTrigger = "$";
 const tokenpath = PATH.join(__dirname, "token.txt");
 const bankpath = PATH.join(__dirname, "bank.json");
-const helptext = "https://github.com/regenerativep/checkerpieces for code\nyou get money by people giving you money and the universal basic income of 0.0003cP per second\n\ncommands:\n$register\nregisters you\n\n$addvalue\nno\n\n$getvalue\ngets the amount of checker pieces in your account\n\n$transfer [amount: float] [destination: string]\ntransfers the given amount from your account to the destination account";
+const helptext = "https://github.com/regenerativep/checkerpieces for code\nyou get money by people giving you money and the universal basic income of 0.017cP per minute\n\ncommands:\n$register\nregisters you\n\n$addvalue\nno\n\n$getvalue\ngets the amount of checker pieces in your account\n\n$transfer [amount: float] [destination: string]\ntransfers the given amount from your account to the destination account";
 
 var getToken = function(cb)
 {
