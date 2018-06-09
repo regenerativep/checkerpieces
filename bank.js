@@ -57,6 +57,7 @@ class Bank extends EventEmitter
         {
             parent.accounts[i].value += value;
         }
+        parent.getAccount("void").value = 0;
         parent.emit("save");
     }
     load(obj)

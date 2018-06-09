@@ -123,6 +123,7 @@ client.on("message", function(msg)
                 break;
             }
             case "addvalue": {
+                /*
                 if(parts.length != 2)
                 {
                     msg.channel.send("command \"addvalue\" takes [amount: int]");
@@ -137,7 +138,8 @@ client.on("message", function(msg)
                 var amount = parseFloat(parts[1]);
                 account.value += amount;
                 msg.channel.send("added " + amount + " to your account (" + account.owner + ")");
-                saveBank();
+                saveBank();*/
+                msg.channel.send("no");
                 break;
             }
             case "getvalue": {
