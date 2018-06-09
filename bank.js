@@ -48,8 +48,8 @@ class Bank extends EventEmitter
         this.transactions = [];
         var parent = this;
         setInterval(function() {
-            parent.addToAllAccounts(0.0003, parent);
-        }, 1000);
+            parent.addToAllAccounts(0.017, parent);
+        }, 60000);
     }
     addToAllAccounts(value, parent)
     {
