@@ -12,6 +12,7 @@ const helptext = "https://github.com/regenerativep/checkerpieces for code\nyou g
 
 var getToken = function(cb)
 {
+    /*
     FS.readFile(tokenpath, "utf8", function(err, data)
     {
         if(err)
@@ -21,7 +22,9 @@ var getToken = function(cb)
         }
         var token = data;
         cb(token);
-    });
+    });*/
+    var token = process.env.discordToken;
+    cb(token);
 };
 
 var bank = new Bank.Bank();
