@@ -1,0 +1,21 @@
+https://github.com/regenerativep/checkerpieces for code
+```
+you get money by people giving you money and the universal basic income of 0.017cP per minute commands:
+$help
+shows this page 
+
+$register
+registers you
+
+$addvalue
+no
+
+$getvalue
+gets the amount of checker pieces in your account
+
+$getactualvalue
+gets the actual amount of checker pieces in your account (as in not rounded)
+
+$transfer [amount: float] [destination: string]
+transfers the given amount from your account to the destination account
+```

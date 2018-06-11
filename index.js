@@ -8,7 +8,9 @@ const Bank = require("./bank.js");
 const commandTrigger = "$";
 const tokenpath = PATH.join(__dirname, "token.txt");
 const bankpath = PATH.join(__dirname, "bank.json");
-const helptext = "https://github.com/regenerativep/checkerpieces for code\nyou get money by people giving you money and the universal basic income of 0.017cP per minute\n\ncommands:\n$register\nregisters you\n\n$addvalue\nno\n\n$getvalue\ngets the amount of checker pieces in your account\n\n$transfer [amount: float] [destination: string]\ntransfers the given amount from your account to the destination account";
+const helppath = PATH.join(__dirname, "help.txt");
+//const helptext = "https://github.com/regenerativep/checkerpieces for code\nyou get money by people giving you money and the universal basic income of 0.017cP per minute\n\ncommands:\n$register\nregisters you\n\n$addvalue\nno\n\n$getvalue\ngets the amount of checker pieces in your account\n\n$transfer [amount: float] [destination: string]\ntransfers the given amount from your account to the destination account";
+var helptext = FS.readFileSync(helppath, "utf8");
 
 var getToken = function(cb)
 {
@@ -23,13 +25,15 @@ var getToken = function(cb)
         var token = data;
         cb(token);
     });*/
-    var token = process.env.discordToken;
+    console.log("getting token");
+    var token = process.env.DISCORD_TOKEN;
     cb(token);
 };
 
 var bank = new Bank.Bank();
 try
 {
+    console.log("loading bank");
     bank.load(JSON.parse(FS.readFileSync(bankpath)));
 }
 catch(e)
@@ -53,6 +57,15 @@ function saveBank(showSaveMessage)
         }
     });
 }
+function formatValue(val)
+{
+    var str = Math.floor(val * 100).toString();
+    while(str.length < 3)
+    {
+        str = "0" + str;
+    }
+    return str.substring(0, str.length - 2) + "." + str.substring(str.length - 2) + "cP";
+}
 
 var client = new Discord.Client();
 client.on("ready", function ()
@@ -68,7 +81,7 @@ client.on("message", function(msg)
     {
         if(msg.channel.type != "text")
         {
-            return; //no
+            return; //if we get here, something likely went very wrong
         }
         else if(msg.channel.name != "bot")
         {
@@ -115,7 +128,7 @@ client.on("message", function(msg)
                 var trans = bank.transfer(username, recipient, amount);
                 if(trans == null)
                 {
-                    msg.channel.send("failed to find an account under your name. (" + username + ")");
+                    msg.channel.send("failed to find an account under either your name or the recipient name. (" + username + ")");
                     break;
                 }
                 console.log(trans.toString());
@@ -162,7 +175,22 @@ client.on("message", function(msg)
                     msg.channel.send("failed to find an account under your name. (" + username + ")");
                     break;
                 }
-                msg.channel.send("you have " + account.value + " checker pieces. (" + account.owner + ")");
+                msg.channel.send("you have " + formatValue(account.value) + " (" + account.owner + ")");
+                break;
+            }
+            case "getactualvalue": {
+                if(parts.length != 1)
+                {
+                    msg.channel.send("command \"getactualvalue\" takes no arguments");
+                    break;
+                }
+                var account = bank.getAccount(username);
+                if(account == null)
+                {
+                    msg.channel.send("failed to find an account under your name. (" + username + ")");
+                    break;
+                }
+                msg.channel.send("you have " + account.value + " (" + account.owner + ")");
                 break;
             }
         }
