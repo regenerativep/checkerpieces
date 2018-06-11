@@ -18,4 +18,10 @@ gets the actual amount of checker pieces in your account (as in not rounded)
 
 $transfer [amount: float] [destination: string]
 transfers the given amount from your account to the destination account
+
+$users
+shows users 1 through 12
+
+$users [page: int (>0)]
+shows users on the specified page, where a single page consists of 12 users
 ```

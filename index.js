@@ -6,6 +6,8 @@ const Cleanup = require("node-cleanup");
 const Bank = require("./bank.js");
 
 const commandTrigger = "$";
+const nameClosenessThreshold = 8;
+const userPageSize = 12;
 const tokenpath = PATH.join(__dirname, "token.txt");
 const bankpath = PATH.join(__dirname, "bank.json");
 const helppath = PATH.join(__dirname, "help.txt");
@@ -98,6 +100,11 @@ client.on("message", function(msg)
         switch(parts[0].toLowerCase())
         {
             case "help": {
+                if(parts.length != 1)
+                {
+                    msg.channel.send("command \"help\" takes no arguments");
+                    break;
+                }
                 msg.author.send(helptext)
                 break;
             }
@@ -110,10 +117,10 @@ client.on("message", function(msg)
                 var acc = bank.register(username);
                 if(acc == null)
                 {
-                    msg.channel.send("you have already been registered (" + username + ")");
+                    msg.channel.send("you have already been registered (__" + username + "__)");
                     break;
                 }
-                msg.channel.send("you have been registered (" + acc.owner + ")");
+                msg.channel.send("you have been registered (__" + acc.owner + "__)");
                 saveBank();
                 break;
             }
@@ -126,9 +133,25 @@ client.on("message", function(msg)
                 var amount = parseFloat(parts[1]);
                 var recipient = parts[2];
                 var trans = bank.transfer(username, recipient, amount);
-                if(trans == null)
+                if(trans[0] == null)
                 {
-                    msg.channel.send("failed to find an account under either your name or the recipient name. (" + username + ")");
+                    if(trans[1] == 1)
+                    {
+                        msg.channel.send("failed to find an account under your name. (__" + username + "__)");
+                    }
+                    else if(trans[1] == 2)
+                    {
+                        var text = "failed to find an account under the recipient's name."
+                        var closest = bank.getClosestAccount(recipient);
+                        if(closest.name != "")
+                        {
+                            if(closest.value <= nameClosenessThreshold)
+                            {
+                                text += " did you mean **" + closest.name + "** ?";
+                            }
+                        }
+                        msg.channel.send(text + " (__" + username + "__)");
+                    }
                     break;
                 }
                 console.log(trans.toString());
@@ -172,10 +195,10 @@ client.on("message", function(msg)
                 var account = bank.getAccount(username);
                 if(account == null)
                 {
-                    msg.channel.send("failed to find an account under your name. (" + username + ")");
+                    msg.channel.send("failed to find an account under your name. (__" + username + "__)");
                     break;
                 }
-                msg.channel.send("you have " + formatValue(account.value) + " (" + account.owner + ")");
+                msg.channel.send("you have " + formatValue(account.value) + " (__" + account.owner + "__)");
                 break;
             }
             case "getactualvalue": {
@@ -187,10 +210,56 @@ client.on("message", function(msg)
                 var account = bank.getAccount(username);
                 if(account == null)
                 {
-                    msg.channel.send("failed to find an account under your name. (" + username + ")");
+                    msg.channel.send("failed to find an account under your name. (__" + username + "__)");
                     break;
                 }
-                msg.channel.send("you have " + account.value + " (" + account.owner + ")");
+                msg.channel.send("you have " + account.value + "cP (__" + account.owner + "__)");
+                break;
+            }
+            case "users": {
+                var num;
+                if(parts.length == 1)
+                {
+                    num = 0;
+                }
+                else if(parts.length == 2)
+                {
+                    num = parseInt(parts[1]);
+                    if(num == NaN)
+                    {
+                        msg.channel.send("there was a problem parsing your number (__" + username + "__)");
+                        break;
+                    }
+                    num -= 1;
+                    if(num < 0)
+                    {
+                        msg.channel.send("thats not a thing (__" + username + "__)");
+                        break;
+                    }
+                }
+                else
+                {
+                    msg.channel.send("command \"users\" takes [page: int (>0)]");
+                    break;
+                }
+                var formatUser = function(acc, num)
+                {
+                    var str = "[" + (num + 1) + "] " + formatValue(acc.value) + " - " + acc.owner;
+                    if(acc.owner == "void")
+                    {
+                        str += " (if you put value here, that value will be deleted)";
+                    }
+                    return str;
+                };
+                var from = num * userPageSize;
+                var to = from + userPageSize;
+                var str = "showing users from number " + (from + 1) + " to number " + to + "\n```\n";
+                for(var i = from; i < to && i < bank.accounts.length; i++)
+                {
+                    str += formatUser(bank.accounts[i], i) + "\n";
+                }
+                str += "```";
+                msg.channel.send(str);
                 break;
             }
         }
