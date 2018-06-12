@@ -96,10 +96,12 @@ client.on("message", function(msg)
     {
         //we have a command
         message = message.substring(commandTrigger.length);
+        console.log(username + ": " + message);
         var parts = message.split(" ");
         switch(parts[0].toLowerCase())
         {
             case "help": {
+
                 if(parts.length != 1)
                 {
                     msg.channel.send("command \"help\" takes no arguments");
@@ -267,5 +269,14 @@ client.on("message", function(msg)
 });
 getToken(function(token)
 {
-    client.login(token);
+    var login;
+    login = function()
+    {
+        client.login(token).catch(function(reason)
+        {
+            console.log("failed to log in to discord, trying again in 10 seconds...");
+            setTimeout(login, 10000);
+        });
+    };
+    login();
 });

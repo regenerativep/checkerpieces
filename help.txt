@@ -1,6 +1,9 @@
 https://github.com/regenerativep/checkerpieces for code
 ```
-you get money by people giving you money and the universal basic income of 0.017cP per minute commands:
+you get money by people giving you money and the universal basic income of 0.017cP per minute
+
+commands:
+
 $help
 shows this page 
 
