@@ -107,7 +107,7 @@ client.on("message", function(msg)
                     msg.channel.send("command \"help\" takes no arguments");
                     break;
                 }
-                msg.author.send(helptext)
+                msg.channel.send(helptext)
                 break;
             }
             case "register": {
