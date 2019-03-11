@@ -6,27 +6,15 @@ const Cleanup = require("node-cleanup");
 const Bank = require("./bank.js");
 
 const commandTrigger = "$";
-const nameClosenessThreshold = 8;
+const nameClosenessThreshold = 4;
 const userPageSize = 12;
 const tokenpath = PATH.join(__dirname, "token.txt");
 const bankpath = PATH.join(__dirname, "bank.json");
 const helppath = PATH.join(__dirname, "help.txt");
-//const helptext = "https://github.com/regenerativep/checkerpieces for code\nyou get money by people giving you money and the universal basic income of 0.017cP per minute\n\ncommands:\n$register\nregisters you\n\n$addvalue\nno\n\n$getvalue\ngets the amount of checker pieces in your account\n\n$transfer [amount: float] [destination: string]\ntransfers the given amount from your account to the destination account";
 var helptext = FS.readFileSync(helppath, "utf8");
 
 var getToken = function(cb)
 {
-    /*
-    FS.readFile(tokenpath, "utf8", function(err, data)
-    {
-        if(err)
-        {
-            console.log(err);
-            return;
-        }
-        var token = data;
-        cb(token);
-    });*/
     console.log("getting token");
     var token = process.env.DISCORD_TOKEN;
     cb(token);
@@ -91,7 +79,7 @@ client.on("message", function(msg)
         }
     }
     var message = msg.content;
-    var username = msg.author.tag;
+    let username = msg.author.username;
     if(message.substring(0, commandTrigger.length) === commandTrigger)
     {
         //we have a command
@@ -116,13 +104,13 @@ client.on("message", function(msg)
                     msg.channel.send("command \"register\" takes no arguments");
                     break;
                 }
-                var acc = bank.register(username);
+                var acc = bank.register(msg.author);
                 if(acc == null)
                 {
                     msg.channel.send("you have already been registered (__" + username + "__)");
                     break;
                 }
-                msg.channel.send("you have been registered (__" + acc.owner + "__)");
+                msg.channel.send("you have been registered (__" + acc.name + "__)");
                 saveBank();
                 break;
             }
@@ -133,31 +121,19 @@ client.on("message", function(msg)
                     break;
                 }
                 var amount = parseFloat(parts[1]);
-                var recipient = parts[2];
-                var trans = bank.transfer(username, recipient, amount);
+                var recipient = bank.getClosestAccount(parts[2]);
+                var trans = bank.transfer(msg.author.id, recipient.clientid, amount);
                 if(trans[0] == null)
                 {
                     if(trans[1] == 1)
                     {
                         msg.channel.send("failed to find an account under your name. (__" + username + "__)");
                     }
-                    else if(trans[1] == 2)
-                    {
-                        var text = "failed to find an account under the recipient's name."
-                        var closest = bank.getClosestAccount(recipient);
-                        if(closest.name != "")
-                        {
-                            if(closest.value <= nameClosenessThreshold)
-                            {
-                                text += " did you mean **" + closest.name + "** ?";
-                            }
-                        }
-                        msg.channel.send(text + " (__" + username + "__)");
-                    }
+                    msg.channel.send("transaction failed or something; im not sure what happened. yell at forrest if you can");
                     break;
                 }
-                console.log(trans.toString());
-                if(trans.perform())
+                console.log(trans[0].toString());
+                if(trans[0].perform())
                 {
                     msg.channel.send("successfully transferred value");
                 }
@@ -183,7 +159,7 @@ client.on("message", function(msg)
                 }
                 var amount = parseFloat(parts[1]);
                 account.value += amount;
-                msg.channel.send("added " + amount + " to your account (" + account.owner + ")");
+                msg.channel.send("added " + amount + " to your account (" + account.name + ")");
                 saveBank();*/
                 msg.channel.send("no");
                 break;
@@ -194,13 +170,13 @@ client.on("message", function(msg)
                     msg.channel.send("command \"getvalue\" takes no arguments");
                     break;
                 }
-                var account = bank.getAccount(username);
+                var account = bank.getAccount(msg.author.id);
                 if(account == null)
                 {
                     msg.channel.send("failed to find an account under your name. (__" + username + "__)");
                     break;
                 }
-                msg.channel.send("you have " + formatValue(account.value) + " (__" + account.owner + "__)");
+                msg.channel.send("you have " + formatValue(account.value) + " (__" + account.name + "__)");
                 break;
             }
             case "getactualvalue": {
@@ -209,13 +185,13 @@ client.on("message", function(msg)
                     msg.channel.send("command \"getactualvalue\" takes no arguments");
                     break;
                 }
-                var account = bank.getAccount(username);
+                var account = bank.getAccount(msg.author.id);
                 if(account == null)
                 {
                     msg.channel.send("failed to find an account under your name. (__" + username + "__)");
                     break;
                 }
-                msg.channel.send("you have " + account.value + "cP (__" + account.owner + "__)");
+                msg.channel.send("you have " + account.value + "cP (__" + account.name + "__)");
                 break;
             }
             case "users": {
@@ -246,8 +222,8 @@ client.on("message", function(msg)
                 }
                 var formatUser = function(acc, num)
                 {
-                    var str = "[" + (num + 1) + "] " + formatValue(acc.value) + " - " + acc.owner;
-                    if(acc.owner == "void")
+                    var str = "[" + (num + 1) + "] " + formatValue(acc.value) + " - " + acc.name;
+                    if(acc.id == "void")
                     {
                         str += " (if you put value here, that value will be deleted)";
                     }
@@ -262,6 +238,21 @@ client.on("message", function(msg)
                 }
                 str += "```";
                 msg.channel.send(str);
+                break;
+            }
+            case "changename": {
+                if(parts.length == 2)
+                {
+                    let acc = bank.getAccount(msg.author.id);
+                    let beforename = acc.name;
+                    let aftername = parts[1];
+                    bank.setName(acc.id, aftername);
+                    msg.channel.send("changed your account name from \"" + beforename + "\" to \"" + aftername + "\"");
+                }
+                else
+                {
+                    msg.channel.send("command \"changename\" takes [newname: string]");
+                }
                 break;
             }
         }

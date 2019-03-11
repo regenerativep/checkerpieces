@@ -4,12 +4,13 @@ const EventEmitter = require("events");
 
 function accountToString(acc)
 {
-    return acc.owner + " (" + acc.value + "cP)";
+    return acc.name + " (" + acc.value + "cP)";
 }
-function createAccount(owner)
+function createAccount(id)
 {
     return {
-        owner: owner,
+        name: "",
+        clientid: id,
         value: 0
     };
 }
@@ -116,28 +117,75 @@ class Bank extends EventEmitter
         this.accounts = obj.accounts;
         this.transactions = obj.transactions;
     }
-    register(name)
+    register(user)
     {
         //make sure we don't already have an account for this person
         for(var i = 0; i < this.accounts.length; i++)
         {
-            if(this.accounts[i].owner === name)
+            if(this.accounts[i].clientid === user.id)
             {
                 return null; //there is already an account for this person
             }
         }
-        var acc = createAccount(name);
-        //console.log(acc);
+        var acc = createAccount(user.id);
         this.accounts.push(acc);
+        this.setName(acc.id, user.username);
         this.emit("register", acc);
         return acc;
     }
-    getAccount(name)
+    setName(id, name)
+    {
+        let acc = this.getAccount(id);
+        for(let i in this.accounts)
+        {
+            let checkAcc = this.accounts[i];
+            if(checkAcc.name == name)
+            {
+                let lastNumber = this.getLastNumber(name);
+                return setName(id, lastNumber[0] + (lastNumber[1]++));
+            }
+        }
+        acc.name = this.fixName(name);
+        return name;
+    }
+    getLastNumber(name)
+    {
+        let num = "";
+        while(name.length > 0)
+        {
+            let char = name[name.length - 1];
+            if("0123456789".indexOf(char) < 0)
+            {
+                break;
+            }
+            num = char + num;
+            name = name.substring(0, name.length - 1);
+        }
+        if(num == "")
+        {
+            num = "0";
+        }
+        return [name, num];
+    }
+    fixName(username)
+    {
+        let newStr = "";
+        for(let i in username)
+        {
+            let char = username[i];
+            if("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.=_:;|/,[]{}<>?!@#$%^&*()-+`~".indexOf(char) >= 0)
+            {
+                newStr += char;
+            }
+        }
+        return newStr;
+    }
+    getAccount(id)
     {
         for(var i = 0; i < this.accounts.length; i++)
         {
             var acc = this.accounts[i];
-            if(acc.owner === name)
+            if(acc.clientid == id)
             {
                 return acc;
             }
@@ -170,20 +218,21 @@ class Bank extends EventEmitter
     }
     getClosestAccount(name)
     {
-        var lowest, lname = "";
+        var lowest, lname = "", bestacc = null;
         for(var i = 0; i < this.accounts.length; i++)
         {
             var acc = this.accounts[i];
-            if(acc.owner == "void")
+            if(acc.id == "void")
                 continue;
-            var amt = distanceBetweenStrings(name, acc.owner);
+            var amt = distanceBetweenStrings(name, acc.name);
             if(typeof lowest == "undefined" || amt < lowest)
             {
-                lname = acc.owner;
+                bestacc = acc;
+                lname = acc.name;
                 lowest = amt;
             }
         }
-        return { name: lname, value: lowest };
+        return bestacc;
     }
     
 }
