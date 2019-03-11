@@ -129,20 +129,23 @@ class Bank extends EventEmitter
         }
         var acc = createAccount(user.id);
         this.accounts.push(acc);
-        this.setName(acc.id, user.username);
+        this.setName(acc, user.username);
         this.emit("register", acc);
         return acc;
     }
-    setName(id, name)
+    setName(acc, name)
     {
-        let acc = this.getAccount(id);
+        if(acc == null)
+        {
+            return console.log("failed to set name for id " + acc.id + ", name " + name);
+        }
         for(let i in this.accounts)
         {
             let checkAcc = this.accounts[i];
             if(checkAcc.name == name)
             {
                 let lastNumber = this.getLastNumber(name);
-                return setName(id, lastNumber[0] + (lastNumber[1]++));
+                return setName(acc, lastNumber[0] + (lastNumber[1]++));
             }
         }
         acc.name = this.fixName(name);

@@ -145,22 +145,6 @@ client.on("message", function(msg)
                 break;
             }
             case "addvalue": {
-                /*
-                if(parts.length != 2)
-                {
-                    msg.channel.send("command \"addvalue\" takes [amount: int]");
-                    break;
-                }
-                var account = bank.getAccount(username);
-                if(account == null)
-                {
-                    msg.channel.send("failed to find an account under your name. (" + username + ")");
-                    break;
-                }
-                var amount = parseFloat(parts[1]);
-                account.value += amount;
-                msg.channel.send("added " + amount + " to your account (" + account.name + ")");
-                saveBank();*/
                 msg.channel.send("no");
                 break;
             }
@@ -246,7 +230,7 @@ client.on("message", function(msg)
                     let acc = bank.getAccount(msg.author.id);
                     let beforename = acc.name;
                     let aftername = parts[1];
-                    bank.setName(acc.id, aftername);
+                    bank.setName(acc, aftername);
                     msg.channel.send("changed your account name from \"" + beforename + "\" to \"" + aftername + "\"");
                 }
                 else
