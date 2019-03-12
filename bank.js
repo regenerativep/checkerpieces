@@ -145,7 +145,7 @@ class Bank extends EventEmitter
             if(checkAcc.name == name)
             {
                 let lastNumber = this.getLastNumber(name);
-                return setName(acc, lastNumber[0] + (lastNumber[1]++));
+                return this.setName(acc, lastNumber[0] + (lastNumber[1]++));
             }
         }
         acc.name = this.fixName(name);
@@ -225,7 +225,7 @@ class Bank extends EventEmitter
         for(var i = 0; i < this.accounts.length; i++)
         {
             var acc = this.accounts[i];
-            if(acc.id == "void")
+            if(acc.name == "void")
                 continue;
             var amt = distanceBetweenStrings(name, acc.name);
             if(typeof lowest == "undefined" || amt < lowest)

@@ -67,6 +67,7 @@ client.on("ready", function ()
 });
 client.on("message", function(msg)
 {
+	/*
     if(msg.channel.type != "dm")
     {
         if(msg.channel.type != "text")
@@ -77,7 +78,7 @@ client.on("message", function(msg)
         {
             return;
         }
-    }
+    }*/
     var message = msg.content;
     let username = msg.author.username;
     if(message.substring(0, commandTrigger.length) === commandTrigger)
@@ -207,7 +208,7 @@ client.on("message", function(msg)
                 var formatUser = function(acc, num)
                 {
                     var str = "[" + (num + 1) + "] " + formatValue(acc.value) + " - " + acc.name;
-                    if(acc.id == "void")
+                    if(acc.name == "void")
                     {
                         str += " (if you put value here, that value will be deleted)";
                     }
@@ -230,7 +231,7 @@ client.on("message", function(msg)
                     let acc = bank.getAccount(msg.author.id);
                     let beforename = acc.name;
                     let aftername = parts[1];
-                    bank.setName(acc, aftername);
+                    aftername = bank.setName(acc, aftername);
                     msg.channel.send("changed your account name from \"" + beforename + "\" to \"" + aftername + "\"");
                 }
                 else
