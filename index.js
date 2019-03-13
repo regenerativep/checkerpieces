@@ -6,9 +6,8 @@ const Cleanup = require("node-cleanup");
 const Bank = require("./bank.js");
 
 const commandTrigger = "$";
-const nameClosenessThreshold = 4;
+//const nameClosenessThreshold = 4;
 const userPageSize = 12;
-const tokenpath = PATH.join(__dirname, "token.txt");
 const bankpath = PATH.join(__dirname, "bank.json");
 const helppath = PATH.join(__dirname, "help.txt");
 var helptext = FS.readFileSync(helppath, "utf8");
@@ -30,7 +29,7 @@ catch(e)
 {
     console.log("failed to load bank");
 }
-bank.on("save", function() { saveBank(false) } );
+bank.on("save", function() { saveBank(false); } );
 function saveBank(showSaveMessage)
 {
     FS.writeFile(bankpath, JSON.stringify(bank.save()), "utf8", function(err) {
@@ -67,18 +66,6 @@ client.on("ready", function ()
 });
 client.on("message", function(msg)
 {
-	/*
-    if(msg.channel.type != "dm")
-    {
-        if(msg.channel.type != "text")
-        {
-            return; //if we get here, something likely went very wrong
-        }
-        else if(msg.channel.name != "bot")
-        {
-            return;
-        }
-    }*/
     var message = msg.content;
     let username = msg.author.username;
     if(message.substring(0, commandTrigger.length) === commandTrigger)
@@ -136,17 +123,125 @@ client.on("message", function(msg)
                 console.log(trans[0].toString());
                 if(trans[0].perform())
                 {
-                    msg.channel.send("successfully transferred value");
+                    msg.channel.send("successfully transferred value to " + recipient.name);
                 }
                 else
                 {
-                    msg.channel.send("failed to transfer; likely insufficient value");
+                    msg.channel.send("failed to transfer");
                 }
                 saveBank();
                 break;
             }
             case "addvalue": {
-                msg.channel.send("no");
+                if(!bank.isAdmin(msg.author.id))
+                {
+                    msg.channel.send("no");
+                    break;
+                }
+                if(parts.length != 3)
+                {
+                    msg.channel.send("command \"addvalue\" takes [amount: int] [recipient: string]");
+                    break;
+                }
+                var account = bank.getClosestAccount(parts[2]);
+                if(account == null)
+                {
+                    msg.channel.send("failed to find account \"" + parts[2] + "\"");
+                    break;
+                }
+                var amount = parseFloat(parts[1]);
+                account.value += amount;
+                msg.channel.send("added " + amount + " to account (" + account.name + ")");
+                saveBank();
+                break;
+            }
+            case "addadmin": {
+                if(!bank.isAdmin(msg.author.id))
+                {
+                    msg.channel.send("no");
+                    break;
+                }
+                if(parts.length != 2)
+                {
+                    msg.channel.send("command \"addadmin\" takes [recipient: string]");
+                    break;
+                }
+                let id, acc;
+                if(String(parseInt(parts[2])) == parts[2]) //check if we have a client id
+                {
+                    id = parts[2];
+                    acc = bank.getAccount(id);
+                }
+                else
+                {
+                    acc = bank.getClosestAccount(parts[1]);
+                    id = acc.id;
+                }
+                if(acc == null)
+                {
+                    msg.channel.send("failed to find account under \"" + parts[1] + "\"");
+                    break;
+                }
+                if(bank.isAdmin(id))
+                {
+                    msg.channel.send(acc.name + " is already admin");
+                    break;
+                }
+                bank.admins.push(id);
+                msg.channel.send("added \"" + acc.name + "\" to admin list");
+                break;
+            }
+            case "removeadmin": {
+                if(msg.author.id != "198652932802084864") //just for me :)
+                {
+                    msg.channel.send("no");
+                    break;
+                }
+                if(parts.length != 2)
+                {
+                    msg.channel.send("command \"removeadmin\" takes [recipient: string]");
+                    break;
+                }
+                let id, acc;
+                if(String(parseInt(parts[2])) == parts[2]) //check if we have a client id
+                {
+                    id = parts[2];
+                    acc = bank.getAccount(id);
+                }
+                else
+                {
+                    acc = bank.getClosestAccount(parts[1]);
+                    id = acc.id;
+                }
+                if(acc == null)
+                {
+                    msg.channel.send("failed to find account under \"" + parts[1] + "\"");
+                    break;
+                }
+                if(!bank.isAdmin(id))
+                {
+                    msg.channel.send(acc.name + " is not admin");
+                    break;
+                }
+                let removedAdmin = false;
+                for(let i = 0; i < bank.admins.length; i++)
+                {
+                    let admin = bank.admins[i];
+                    if(admin == id)
+                    {
+                        bank.splice(i, 1);
+                        removedAdmin = true;
+                        break;
+                    }
+                }
+                if(removedAdmin)
+                {
+                    msg.channel.send("something went wrong in getting rid of the admin " + acc.name);
+                }
+                else
+                {
+                    msg.channel.send("removed admin " + acc.name);
+                }
                 break;
             }
             case "getvalue": {
@@ -233,6 +328,7 @@ client.on("message", function(msg)
                     let aftername = parts[1];
                     aftername = bank.setName(acc, aftername);
                     msg.channel.send("changed your account name from \"" + beforename + "\" to \"" + aftername + "\"");
+                    saveBank();
                 }
                 else
                 {

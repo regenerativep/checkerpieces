@@ -98,6 +98,7 @@ class Bank extends EventEmitter
         super();
         this.accounts = [];
         this.transactions = [];
+        this.admins = [];
         var parent = this;
         setInterval(function() {
             parent.addToAllAccounts(0.017, parent);
@@ -116,6 +117,7 @@ class Bank extends EventEmitter
     {
         this.accounts = obj.accounts;
         this.transactions = obj.transactions;
+        this.admins = obj.admins;
     }
     register(user)
     {
@@ -216,7 +218,8 @@ class Bank extends EventEmitter
     {
         return {
             transactions: this.transactions,
-            accounts: this.accounts
+            accounts: this.accounts,
+            admins: this.admins
         };
     }
     getClosestAccount(name)
@@ -237,7 +240,17 @@ class Bank extends EventEmitter
         }
         return bestacc;
     }
-    
+    isAdmin(id)
+    {
+        for(let i in this.admins)
+        {
+            if(id == this.admins[i])
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 module.exports = {
