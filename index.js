@@ -109,6 +109,11 @@ client.on("message", function(msg)
                     break;
                 }
                 var amount = parseFloat(parts[1]);
+                if(isNaN(amount))
+                {
+                    msg.channel.send("bad amount");
+                    break;
+                }
                 var recipient = bank.getClosestAccount(parts[2]);
                 var trans = bank.transfer(msg.author.id, recipient.clientid, amount);
                 if(trans[0] == null)
@@ -150,6 +155,11 @@ client.on("message", function(msg)
                     break;
                 }
                 var amount = parseFloat(parts[1]);
+                if(isNaN(amount))
+                {
+                    msg.channel.send("bad amount");
+                    break;
+                }
                 account.value += amount;
                 msg.channel.send("added " + amount + " to account (" + account.name + ")");
                 saveBank();
