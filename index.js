@@ -60,7 +60,7 @@ function failedToFindAccountFromName(name, send)
 {
     let failMessage = "failed to find user by the name of \"" + name + "\"";
     let closest = bank.getClosestAccount(name);
-    let closestAmount = bank.distanceBetweenStrings(closest.name, name);
+    let closestAmount = Bank.distanceBetweenStrings(closest.name, name);
     if(closestAmount <= nameClosenessThreshold)
     {
         failMessage += ", did you mean \"" + closest.name + "\" ?";
