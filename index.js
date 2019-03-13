@@ -129,7 +129,7 @@ client.on("message", function(msg)
                 var recipient = bank.getAccountFromName(parts[2]);
                 if(recipient == null)
                 {
-                    failedToFindAccountFromName(parts[2], msg.channel.send);
+                    failedToFindAccountFromName(parts[2], function(text) { msg.channel.send(text); });
                     break;
                 }
                 var trans = bank.transfer(msg.author.id, recipient.clientid, amount);
@@ -168,7 +168,7 @@ client.on("message", function(msg)
                 var account = bank.getAccountFromName(parts[2]);
                 if(account == null)
                 {
-                    failedToFindAccountFromName(parts[2], msg.channel.send);
+                    failedToFindAccountFromName(parts[2], function(text) { msg.channel.send(text); });
                     break;
                 }
                 var amount = parseFloat(parts[1]);
@@ -196,7 +196,7 @@ client.on("message", function(msg)
                 let acc = bank.getAccount(parts[1]);
                 if(acc == null)
                 {
-                    failedToFindAccountFromName(parts[1], msg.channel.send);
+                    failedToFindAccountFromName(parts[1], function(text) { msg.channel.send(text); });
                     break;
                 }
                 if(bank.isAdmin(id))
@@ -222,7 +222,7 @@ client.on("message", function(msg)
                 let acc = bank.getAccount(parts[1]);
                 if(acc == null)
                 {
-                    failedToFindAccountFromName(parts[1], msg.channel.send);
+                    failedToFindAccountFromName(parts[1], function(text) { msg.channel.send(text); });
                     break;
                 }
                 if(!bank.isAdmin(id))
