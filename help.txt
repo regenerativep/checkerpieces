@@ -30,4 +30,10 @@ shows users on the specified page, where a single page consists of 12 users
 
 $changename [newname: string]
 changes your account name to what you want
+
+$addadmin
+no
+
+$removeadmin
+no
 ```
