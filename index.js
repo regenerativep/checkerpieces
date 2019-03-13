@@ -11,6 +11,7 @@ const userPageSize = 12;
 const bankpath = PATH.join(__dirname, "bank.json");
 const helppath = PATH.join(__dirname, "help.txt");
 var helptext = FS.readFileSync(helppath, "utf8");
+var nameClosenessThreshold = 4;
 
 var getToken = function(cb)
 {
@@ -54,6 +55,17 @@ function formatValue(val)
         str = "0" + str;
     }
     return str.substring(0, str.length - 2) + "." + str.substring(str.length - 2) + "cP";
+}
+function failedToFindAccountFromName(name, send)
+{
+    let failMessage = "failed to find user by the name of \"" + name + "\"";
+    let closest = bank.getClosestAccount(name);
+    let closestAmount = bank.distanceBetweenStrings(closest.name, name);
+    if(closestAmount <= nameClosenessThreshold)
+    {
+        failMessage += ", did you mean \"" + closest.name + "\" ?";
+    }
+    send(failMessage);
 }
 
 var client = new Discord.Client();
@@ -114,7 +126,12 @@ client.on("message", function(msg)
                     msg.channel.send("bad amount");
                     break;
                 }
-                var recipient = bank.getClosestAccount(parts[2]);
+                var recipient = bank.getAccountFromName(parts[2]);
+                if(recipient == null)
+                {
+                    failedToFindAccountFromName(parts[2], msg.channel.send);
+                    break;
+                }
                 var trans = bank.transfer(msg.author.id, recipient.clientid, amount);
                 if(trans[0] == null)
                 {
@@ -148,10 +165,10 @@ client.on("message", function(msg)
                     msg.channel.send("command \"addvalue\" takes [amount: int] [recipient: string]");
                     break;
                 }
-                var account = bank.getClosestAccount(parts[2]);
+                var account = bank.getAccountFromName(parts[2]);
                 if(account == null)
                 {
-                    msg.channel.send("failed to find account \"" + parts[2] + "\"");
+                    failedToFindAccountFromName(parts[2], msg.channel.send);
                     break;
                 }
                 var amount = parseFloat(parts[1]);
@@ -176,20 +193,10 @@ client.on("message", function(msg)
                     msg.channel.send("command \"addadmin\" takes [recipient: string]");
                     break;
                 }
-                let id, acc;
-                if(String(parseInt(parts[2])) == parts[2]) //check if we have a client id
-                {
-                    id = parts[2];
-                    acc = bank.getAccount(id);
-                }
-                else
-                {
-                    acc = bank.getClosestAccount(parts[1]);
-                    id = acc.id;
-                }
+                let acc = bank.getAccount(parts[1]);
                 if(acc == null)
                 {
-                    msg.channel.send("failed to find account under \"" + parts[1] + "\"");
+                    failedToFindAccountFromName(parts[1], msg.channel.send);
                     break;
                 }
                 if(bank.isAdmin(id))
@@ -212,20 +219,10 @@ client.on("message", function(msg)
                     msg.channel.send("command \"removeadmin\" takes [recipient: string]");
                     break;
                 }
-                let id, acc;
-                if(String(parseInt(parts[2])) == parts[2]) //check if we have a client id
-                {
-                    id = parts[2];
-                    acc = bank.getAccount(id);
-                }
-                else
-                {
-                    acc = bank.getClosestAccount(parts[1]);
-                    id = acc.id;
-                }
+                let acc = bank.getAccount(parts[1]);
                 if(acc == null)
                 {
-                    msg.channel.send("failed to find account under \"" + parts[1] + "\"");
+                    failedToFindAccountFromName(parts[1], msg.channel.send);
                     break;
                 }
                 if(!bank.isAdmin(id))
@@ -244,7 +241,7 @@ client.on("message", function(msg)
                         break;
                     }
                 }
-                if(removedAdmin)
+                if(!removedAdmin)
                 {
                     msg.channel.send("something went wrong in getting rid of the admin " + acc.name);
                 }
@@ -260,10 +257,10 @@ client.on("message", function(msg)
                     msg.channel.send("command \"getvalue\" takes no arguments");
                     break;
                 }
-                var account = bank.getAccount(msg.author.id);
+                let account = bank.getAccountFromId(msg.author.id);
                 if(account == null)
                 {
-                    msg.channel.send("failed to find an account under your name. (__" + username + "__)");
+                    msg.channel.send("failed to find an account under your name, " + msg.author.username);
                     break;
                 }
                 msg.channel.send("you have " + formatValue(account.value) + " (__" + account.name + "__)");

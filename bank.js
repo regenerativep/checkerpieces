@@ -65,6 +65,46 @@ function distanceBetweenStrings(a, b) //https://www.dotnetperls.com/levenshtein 
     }
     return d[n][m];
 }
+function getLastNumber(name)
+{
+    let num = "";
+    while(name.length > 0)
+    {
+        let char = name[name.length - 1];
+        if("0123456789".indexOf(char) < 0)
+        {
+            break;
+        }
+        num = char + num;
+        name = name.substring(0, name.length - 1);
+    }
+    if(num == "")
+    {
+        num = "0";
+    }
+    return [name, num];
+}
+function isClientId(id)
+{
+    if(typeof id !== "string" || id.length != 18) //must be a string, 18 characters
+    {
+        return false;
+    }
+    let num = parseInt(id);
+    return !isNaN(num) && stringIsNum(id); //must be a string containing a valid number
+}
+function stringIsNum(str)
+{
+    for(let i in str)
+    {
+        let char = str[i];
+        if("0123456789".indexOf(char) < 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
 class Transaction
 {
     constructor(from, to, amount)
@@ -110,14 +150,20 @@ class Bank extends EventEmitter
         {
             parent.accounts[i].value += value;
         }
-        parent.getAccount("void").value = 0;
+        parent.getAccountFromName("void").value = 0;
         parent.emit("save");
     }
     load(obj)
     {
-        this.accounts = obj.accounts;
-        this.transactions = obj.transactions;
-        this.admins = obj.admins;
+        let parts = ["accounts", "transactions", "admins"]
+        for(let i in parts)
+        {
+            let part = parts[i];
+            if(typeof obj[part] !== "undefined")
+            {
+                this[part] = obj[part];
+            }
+        }
     }
     register(user)
     {
@@ -137,6 +183,7 @@ class Bank extends EventEmitter
     }
     setName(acc, name)
     {
+        name = this.fixName(name);
         if(acc == null)
         {
             return console.log("failed to set name for id " + acc.id + ", name " + name);
@@ -146,31 +193,11 @@ class Bank extends EventEmitter
             let checkAcc = this.accounts[i];
             if(checkAcc.name == name)
             {
-                let lastNumber = this.getLastNumber(name);
-                return this.setName(acc, lastNumber[0] + (lastNumber[1]++));
+                return this.setName(acc, name + "-");
             }
         }
-        acc.name = this.fixName(name);
+        acc.name = name;
         return name;
-    }
-    getLastNumber(name)
-    {
-        let num = "";
-        while(name.length > 0)
-        {
-            let char = name[name.length - 1];
-            if("0123456789".indexOf(char) < 0)
-            {
-                break;
-            }
-            num = char + num;
-            name = name.substring(0, name.length - 1);
-        }
-        if(num == "")
-        {
-            num = "0";
-        }
-        return [name, num];
     }
     fixName(username)
     {
@@ -178,14 +205,26 @@ class Bank extends EventEmitter
         for(let i in username)
         {
             let char = username[i];
-            if("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.=_:;|/,[]{}<>?!@#$%^&*()-+`~".indexOf(char) >= 0)
+            if("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.=_:;|/,[]{}<>?!@#$%^&*()-+`~'\"".indexOf(char) >= 0)
             {
                 newStr += char;
             }
         }
         return newStr;
     }
-    getAccount(id)
+    getAccountFromName(name)
+    {
+        for(var i = 0; i < this.accounts.length; i++)
+        {
+            var acc = this.accounts[i];
+            if(acc.name == name)
+            {
+                return acc;
+            }
+        }
+        return null;
+    }
+    getAccountFromId(id)
     {
         for(var i = 0; i < this.accounts.length; i++)
         {
@@ -196,6 +235,17 @@ class Bank extends EventEmitter
             }
         }
         return null;
+    }
+    getAccount(identifier)
+    {
+        if(isClientId(identifier))
+        {
+            return this.getAccountFromId(identifier);
+        }
+        else
+        {
+            return this.getAccountFromName(identifier);
+        }
     }
     transfer(from, to, amount)
     {
@@ -224,17 +274,14 @@ class Bank extends EventEmitter
     }
     getClosestAccount(name)
     {
-        var lowest, lname = "", bestacc = null;
+        var lowest, bestacc = null;
         for(var i = 0; i < this.accounts.length; i++)
         {
             var acc = this.accounts[i];
-            if(acc.name == "void")
-                continue;
             var amt = distanceBetweenStrings(name, acc.name);
             if(typeof lowest == "undefined" || amt < lowest)
             {
                 bestacc = acc;
-                lname = acc.name;
                 lowest = amt;
             }
         }
@@ -254,5 +301,5 @@ class Bank extends EventEmitter
 }
 
 module.exports = {
-    Transaction, Bank
+    Transaction, Bank, accountToString, distanceBetweenStrings, getLastNumber, isClientId
 };

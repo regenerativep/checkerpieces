@@ -1,17 +1,15 @@
 https://github.com/regenerativep/checkerpieces for code
 ```
 you get money by people giving you money and the universal basic income of 0.017cP per minute
+don't forget to register so that you can take advantage of the UBI
 
-commands:
+----commands:
 
 $help
-shows this page 
+shows this message
 
 $register
-registers you
-
-$addvalue
-no
+registers an account under your current name
 
 $getvalue
 gets the amount of checker pieces in your account
@@ -31,9 +29,16 @@ shows users on the specified page, where a single page consists of 12 users
 $changename [newname: string]
 changes your account name to what you want
 
-$addadmin
-no
+----admin commands:
 
-$removeadmin
-no
+$addvalue [amount: float] [destination: string]
+adds the given amount of checker pieces to the given account
+
+$addadmin [destination: string]
+adds the given user to the admin list
+
+----god commands:
+
+$removeadmin [destination: string]
+removes the given user from the admin list
 ```
