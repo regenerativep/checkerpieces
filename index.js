@@ -2,14 +2,16 @@ const FS = require("fs");
 const PATH = require("path");
 
 const Discord = require("discord.js");
-const Cleanup = require("node-cleanup");
+const cleanup = require("node-cleanup");
 const Bank = require("./bank.js");
 
 const commandTrigger = "$";
-//const nameClosenessThreshold = 4;
 const userPageSize = 12;
 const bankpath = PATH.join(__dirname, "bank.json");
 const helppath = PATH.join(__dirname, "help.txt");
+const permissionLevels = {
+    god: 4, admin: 3, member: 1, unregistered: 0
+};
 var helptext = FS.readFileSync(helppath, "utf8");
 var nameClosenessThreshold = 4;
 
@@ -19,18 +21,354 @@ var getToken = function(cb)
     var token = process.env.DISCORD_TOKEN;
     cb(token);
 };
-
-var bank = new Bank.Bank();
-try
+var commandList = [], bank, client;
+function main()
 {
-    console.log("loading bank");
-    bank.load(JSON.parse(FS.readFileSync(bankpath)));
+    bank = new Bank.Bank();
+    try
+    {
+        console.log("loading bank");
+        bank.load(JSON.parse(FS.readFileSync(bankpath)));
+    }
+    catch(e)
+    {
+        console.log("failed to load bank");
+    }
+    bank.on("save", function() { saveBank(false); } );
+    addCommand("help", permissionLevels.unregistered, function (msg, parts) {
+        if(parts.length != 1)
+        {
+            msg.channel.send("command \"help\" takes no arguments");
+            return;
+        }
+        msg.channel.send(helptext);
+    });
+    addCommand("register", permissionLevels.unregistered, function(msg, parts) {
+        if(parts.length != 1)
+        {
+            msg.channel.send("command \"register\" takes no arguments");
+            return;
+        }
+        var acc = bank.register(msg.author);
+        if(acc == null)
+        {
+            msg.channel.send("you have already been registered (__" + msg.author.username + "__)");
+            return;
+        }
+        msg.channel.send("you have been registered (__" + acc.name + "__)");
+        saveBank();
+    });
+    addCommand("transfer", permissionLevels.member, function(msg, parts) {
+        if(parts.length != 3)
+        {
+            msg.channel.send("command \"transfer\" takes [amount: float] [recipient: string]")
+            return;
+        }
+        var amount = parseFloat(parts[1]);
+        if(isNaN(amount))
+        {
+            msg.channel.send("bad amount");
+            return;
+        }
+        var recipient = bank.getAccountFromName(parts[2]);
+        if(recipient == null)
+        {
+            failedToFindAccountFromName(parts[2], function(text) { msg.channel.send(text); });
+            return;
+        }
+        var trans = bank.transfer(msg.author.id, recipient.clientid, amount);
+        if(trans[0] == null)
+        {
+            if(trans[1] == 1)
+            {
+                msg.channel.send("failed to find an account under your name. (__" + msg.author.username + "__)");
+            }
+            msg.channel.send("transaction failed or something; im not sure what happened. yell at forrest if you can");
+            return;
+        }
+        console.log(trans[0].toString());
+        if(trans[0].perform())
+        {
+            msg.channel.send("successfully transferred value to " + recipient.name);
+        }
+        else
+        {
+            msg.channel.send("failed to transfer");
+        }
+        saveBank();
+    });
+    addCommand("addvalue", permissionLevels.admin, function(msg, parts) {
+        if(!bank.isAdmin(msg.author.id))
+        {
+            msg.channel.send("no");
+            return;
+        }
+        if(parts.length != 3)
+        {
+            msg.channel.send("command \"addvalue\" takes [amount: int] [recipient: string]");
+            return;
+        }
+        var account = bank.getAccountFromName(parts[2]);
+        if(account == null)
+        {
+            failedToFindAccountFromName(parts[2], function(text) { msg.channel.send(text); });
+            return;
+        }
+        var amount = parseFloat(parts[1]);
+        if(isNaN(amount))
+        {
+            msg.channel.send("bad amount");
+            return;
+        }
+        account.value += amount;
+        msg.channel.send("added " + amount + " to account (" + account.name + ")");
+        saveBank();
+    });
+    addCommand("addadmin", permissionLevels.god, function(msg, parts) {
+        if(!bank.isAdmin(msg.author.id))
+        {
+            msg.channel.send("no");
+            return;
+        }
+        if(parts.length != 2)
+        {
+            msg.channel.send("command \"addadmin\" takes [recipient: string]");
+            return;
+        }
+        let acc = bank.getAccount(parts[1]);
+        if(acc == null)
+        {
+            failedToFindAccountFromName(parts[1], function(text) { msg.channel.send(text); });
+            return;
+        }
+        if(bank.isAdmin(id))
+        {
+            msg.channel.send(acc.name + " is already admin");
+            return;
+        }
+        bank.admins.push(id);
+        msg.channel.send("added \"" + acc.name + "\" to admin list");
+    });
+    addCommand("removeadmin", permissionLevels.god, function(msg, parts) {
+        if(msg.author.id != "198652932802084864") //just for me :)
+        {
+            msg.channel.send("no");
+            return;
+        }
+        if(parts.length != 2)
+        {
+            msg.channel.send("command \"removeadmin\" takes [recipient: string]");
+            return;
+        }
+        let acc = bank.getAccount(parts[1]);
+        if(acc == null)
+        {
+            failedToFindAccountFromName(parts[1], function(text) { msg.channel.send(text); });
+            return;
+        }
+        if(!bank.isAdmin(msg.author.id))
+        {
+            msg.channel.send(acc.name + " is not admin");
+            return;
+        }
+        let removedAdmin = false;
+        for(let i = 0; i < bank.admins.length; i++)
+        {
+            let admin = bank.admins[i];
+            if(admin == id)
+            {
+                bank.splice(i, 1);
+                removedAdmin = true;
+                return;
+            }
+        }
+        if(!removedAdmin)
+        {
+            msg.channel.send("something went wrong in getting rid of the admin " + acc.name);
+        }
+        else
+        {
+            msg.channel.send("removed admin " + acc.name);
+        }
+    });
+    addCommand("getvalue", permissionLevels.member, function(msg, parts) {
+        if(parts.length != 1)
+        {
+            msg.channel.send("command \"getvalue\" takes no arguments");
+            return;
+        }
+        let account = bank.getAccountFromId(msg.author.id);
+        if(account == null)
+        {
+            msg.channel.send("failed to find an account under your name, " + msg.author.username);
+            return;
+        }
+        msg.channel.send("you have " + formatValue(account.value) + " (__" + account.name + "__)");
+    });
+    addCommand("getactualvalue", permissionLevels.member, function(msg, parts) {
+        if(parts.length != 1)
+        {
+            msg.channel.send("command \"getactualvalue\" takes no arguments");
+            return;
+        }
+        var account = bank.getAccount(msg.author.id);
+        if(account == null)
+        {
+            msg.channel.send("failed to find an account under your name. (__" + msg.author.username + "__)");
+            return;
+        }
+        msg.channel.send("you have " + account.value + "cP (__" + account.name + "__)");
+    });
+    addCommand("users", permissionLevels.unregistered, function(msg, parts) {
+        var num;
+        if(parts.length == 1)
+        {
+            num = 0;
+        }
+        else if(parts.length == 2)
+        {
+            num = parseInt(parts[1]);
+            if(num == NaN)
+            {
+                msg.channel.send("there was a problem parsing your number (__" + username + "__)");
+                return;
+            }
+            num -= 1;
+            if(num < 0)
+            {
+                msg.channel.send("thats not a thing (__" + username + "__)");
+                return;
+            }
+        }
+        else
+        {
+            msg.channel.send("command \"users\" takes [page: int (>0)]");
+            return;
+        }
+        var formatUser = function(acc, num)
+        {
+            var str = "[" + (num + 1) + "] " + formatValue(acc.value) + " - " + acc.name;
+            if(acc.name == "void")
+            {
+                str += " (if you put value here, that value will be deleted)";
+            }
+            return str;
+        };
+        var from = num * userPageSize;
+        var to = from + userPageSize;
+        var str = "showing users from number " + (from + 1) + " to number " + to + "\n```\n";
+        for(var i = from; i < to && i < bank.accounts.length; i++)
+        {
+            str += formatUser(bank.accounts[i], i) + "\n";
+        }
+        str += "```";
+        msg.channel.send(str);
+    });
+    addCommand("changename", permissionLevels.member, function(msg, parts) {
+        if(parts.length == 2)
+        {
+            let acc = bank.getAccount(msg.author.id);
+            let beforename = acc.name;
+            let aftername = parts[1];
+            aftername = bank.setName(acc, aftername);
+            msg.channel.send("changed your account name from \"" + beforename + "\" to \"" + aftername + "\"");
+            saveBank();
+        }
+        else
+        {
+            msg.channel.send("command \"changename\" takes [newname: string]");
+        }
+    });
+    client = new Discord.Client();
+    client.on("ready", function ()
+    {
+        console.log("logged in as " + client.user.tag);
+        cleanup(function(eC, sig) {
+            client.destroy();
+        });
+    });
+    client.on("message", function(msg)
+    {
+        var message = msg.content;
+        let username = msg.author.username;
+        if(message.substring(0, commandTrigger.length) === commandTrigger)
+        {
+            //we have a command
+            let logMessage = "";
+            message = message.substring(commandTrigger.length);
+            logMessage = username + " (" + msg.author.id + ") : " + message;
+            var parts = message.split(" ");
+            let name = parts[0].toLowerCase();
+            for(let i in commandList)
+            {
+                let command = commandList[i];
+                if(command.name == name)
+                {
+                    let senderPermission = getPermissionLevel(msg.author.id);
+                    logMessage += ", " + senderPermission;
+                    if(command.permission <= senderPermission)
+                    {
+                        command.action(msg, parts);
+                    }
+                    else
+                    {
+                        let sendText = "insufficient permissions, ";
+                        switch(senderPermission)
+                        {
+                            case permissionLevels.god:
+                                sendText += "wut";
+                                break;
+                            case permissionLevels.admin:
+                                sendText += "you're an admin";
+                                break;
+                            case permissionLevels.member:
+                                sendText += "you're a member";
+                                break;
+                            case permissionLevels.unregistered:
+                                sendText += "you're unregistered";
+                                break;
+                            default:
+                                sendText = sendText.substring(0, sendText.length - 2);
+                                break;
+                        }
+                        msg.channel.send(sendText);
+                    }
+                    break;
+                }
+            }
+            console.log(logMessage);
+        }
+    });
+    getToken(function(token)
+    {
+        var login;
+        login = function()
+        {
+            client.login(token).catch(function(reason)
+            {
+                console.log("failed to log in to discord, trying again in 10 seconds...");
+                setTimeout(login, 10000);
+            });
+        };
+        login();
+    });
 }
-catch(e)
+function getPermissionLevel(id)
 {
-    console.log("failed to load bank");
+    if(id == "198652932802084864") //just for me :)
+    {
+        return permissionLevels.god;
+    }
+    if(bank.isAdmin(id))
+    {
+        return permissionLevels.admin;
+    }
+    if(bank.getAccount(id) != null)
+    {
+        return permissionLevels.member;
+    }
+    return permissionLevels.unregistered;
 }
-bank.on("save", function() { saveBank(false); } );
 function saveBank(showSaveMessage)
 {
     FS.writeFile(bankpath, JSON.stringify(bank.save()), "utf8", function(err) {
@@ -67,295 +405,22 @@ function failedToFindAccountFromName(name, send)
     }
     send(failMessage);
 }
-
-var client = new Discord.Client();
-client.on("ready", function ()
+function addCommand(name, perms, action)
 {
-    console.log("logged in as " + client.user.tag);
-    Cleanup(function(eC, sig) {
-        client.destroy();
-    });
-});
-client.on("message", function(msg)
-{
-    var message = msg.content;
-    let username = msg.author.username;
-    if(message.substring(0, commandTrigger.length) === commandTrigger)
+    for(let i in commandList)
     {
-        //we have a command
-        message = message.substring(commandTrigger.length);
-        console.log(username + ": " + message);
-        var parts = message.split(" ");
-        switch(parts[0].toLowerCase())
+        let othername = commandList[i].name;
+        if(othername == name)
         {
-            case "help": {
-
-                if(parts.length != 1)
-                {
-                    msg.channel.send("command \"help\" takes no arguments");
-                    break;
-                }
-                msg.channel.send(helptext)
-                break;
-            }
-            case "register": {
-                if(parts.length != 1)
-                {
-                    msg.channel.send("command \"register\" takes no arguments");
-                    break;
-                }
-                var acc = bank.register(msg.author);
-                if(acc == null)
-                {
-                    msg.channel.send("you have already been registered (__" + username + "__)");
-                    break;
-                }
-                msg.channel.send("you have been registered (__" + acc.name + "__)");
-                saveBank();
-                break;
-            }
-            case "transfer": {
-                if(parts.length != 3)
-                {
-                    msg.channel.send("command \"transfer\" takes [amount: float] [recipient: string]")
-                    break;
-                }
-                var amount = parseFloat(parts[1]);
-                if(isNaN(amount))
-                {
-                    msg.channel.send("bad amount");
-                    break;
-                }
-                var recipient = bank.getAccountFromName(parts[2]);
-                if(recipient == null)
-                {
-                    failedToFindAccountFromName(parts[2], function(text) { msg.channel.send(text); });
-                    break;
-                }
-                var trans = bank.transfer(msg.author.id, recipient.clientid, amount);
-                if(trans[0] == null)
-                {
-                    if(trans[1] == 1)
-                    {
-                        msg.channel.send("failed to find an account under your name. (__" + username + "__)");
-                    }
-                    msg.channel.send("transaction failed or something; im not sure what happened. yell at forrest if you can");
-                    break;
-                }
-                console.log(trans[0].toString());
-                if(trans[0].perform())
-                {
-                    msg.channel.send("successfully transferred value to " + recipient.name);
-                }
-                else
-                {
-                    msg.channel.send("failed to transfer");
-                }
-                saveBank();
-                break;
-            }
-            case "addvalue": {
-                if(!bank.isAdmin(msg.author.id))
-                {
-                    msg.channel.send("no");
-                    break;
-                }
-                if(parts.length != 3)
-                {
-                    msg.channel.send("command \"addvalue\" takes [amount: int] [recipient: string]");
-                    break;
-                }
-                var account = bank.getAccountFromName(parts[2]);
-                if(account == null)
-                {
-                    failedToFindAccountFromName(parts[2], function(text) { msg.channel.send(text); });
-                    break;
-                }
-                var amount = parseFloat(parts[1]);
-                if(isNaN(amount))
-                {
-                    msg.channel.send("bad amount");
-                    break;
-                }
-                account.value += amount;
-                msg.channel.send("added " + amount + " to account (" + account.name + ")");
-                saveBank();
-                break;
-            }
-            case "addadmin": {
-                if(!bank.isAdmin(msg.author.id))
-                {
-                    msg.channel.send("no");
-                    break;
-                }
-                if(parts.length != 2)
-                {
-                    msg.channel.send("command \"addadmin\" takes [recipient: string]");
-                    break;
-                }
-                let acc = bank.getAccount(parts[1]);
-                if(acc == null)
-                {
-                    failedToFindAccountFromName(parts[1], function(text) { msg.channel.send(text); });
-                    break;
-                }
-                if(bank.isAdmin(id))
-                {
-                    msg.channel.send(acc.name + " is already admin");
-                    break;
-                }
-                bank.admins.push(id);
-                msg.channel.send("added \"" + acc.name + "\" to admin list");
-                break;
-            }
-            case "removeadmin": {
-                if(msg.author.id != "198652932802084864") //just for me :)
-                {
-                    msg.channel.send("no");
-                    break;
-                }
-                if(parts.length != 2)
-                {
-                    msg.channel.send("command \"removeadmin\" takes [recipient: string]");
-                    break;
-                }
-                let acc = bank.getAccount(parts[1]);
-                if(acc == null)
-                {
-                    failedToFindAccountFromName(parts[1], function(text) { msg.channel.send(text); });
-                    break;
-                }
-                if(!bank.isAdmin(id))
-                {
-                    msg.channel.send(acc.name + " is not admin");
-                    break;
-                }
-                let removedAdmin = false;
-                for(let i = 0; i < bank.admins.length; i++)
-                {
-                    let admin = bank.admins[i];
-                    if(admin == id)
-                    {
-                        bank.splice(i, 1);
-                        removedAdmin = true;
-                        break;
-                    }
-                }
-                if(!removedAdmin)
-                {
-                    msg.channel.send("something went wrong in getting rid of the admin " + acc.name);
-                }
-                else
-                {
-                    msg.channel.send("removed admin " + acc.name);
-                }
-                break;
-            }
-            case "getvalue": {
-                if(parts.length != 1)
-                {
-                    msg.channel.send("command \"getvalue\" takes no arguments");
-                    break;
-                }
-                let account = bank.getAccountFromId(msg.author.id);
-                if(account == null)
-                {
-                    msg.channel.send("failed to find an account under your name, " + msg.author.username);
-                    break;
-                }
-                msg.channel.send("you have " + formatValue(account.value) + " (__" + account.name + "__)");
-                break;
-            }
-            case "getactualvalue": {
-                if(parts.length != 1)
-                {
-                    msg.channel.send("command \"getactualvalue\" takes no arguments");
-                    break;
-                }
-                var account = bank.getAccount(msg.author.id);
-                if(account == null)
-                {
-                    msg.channel.send("failed to find an account under your name. (__" + username + "__)");
-                    break;
-                }
-                msg.channel.send("you have " + account.value + "cP (__" + account.name + "__)");
-                break;
-            }
-            case "users": {
-                var num;
-                if(parts.length == 1)
-                {
-                    num = 0;
-                }
-                else if(parts.length == 2)
-                {
-                    num = parseInt(parts[1]);
-                    if(num == NaN)
-                    {
-                        msg.channel.send("there was a problem parsing your number (__" + username + "__)");
-                        break;
-                    }
-                    num -= 1;
-                    if(num < 0)
-                    {
-                        msg.channel.send("thats not a thing (__" + username + "__)");
-                        break;
-                    }
-                }
-                else
-                {
-                    msg.channel.send("command \"users\" takes [page: int (>0)]");
-                    break;
-                }
-                var formatUser = function(acc, num)
-                {
-                    var str = "[" + (num + 1) + "] " + formatValue(acc.value) + " - " + acc.name;
-                    if(acc.name == "void")
-                    {
-                        str += " (if you put value here, that value will be deleted)";
-                    }
-                    return str;
-                };
-                var from = num * userPageSize;
-                var to = from + userPageSize;
-                var str = "showing users from number " + (from + 1) + " to number " + to + "\n```\n";
-                for(var i = from; i < to && i < bank.accounts.length; i++)
-                {
-                    str += formatUser(bank.accounts[i], i) + "\n";
-                }
-                str += "```";
-                msg.channel.send(str);
-                break;
-            }
-            case "changename": {
-                if(parts.length == 2)
-                {
-                    let acc = bank.getAccount(msg.author.id);
-                    let beforename = acc.name;
-                    let aftername = parts[1];
-                    aftername = bank.setName(acc, aftername);
-                    msg.channel.send("changed your account name from \"" + beforename + "\" to \"" + aftername + "\"");
-                    saveBank();
-                }
-                else
-                {
-                    msg.channel.send("command \"changename\" takes [newname: string]");
-                }
-                break;
-            }
+            console.log("failed to add command \"" + name + "\", command name already exists");
+            return;
         }
     }
-});
-getToken(function(token)
-{
-    var login;
-    login = function()
-    {
-        client.login(token).catch(function(reason)
-        {
-            console.log("failed to log in to discord, trying again in 10 seconds...");
-            setTimeout(login, 10000);
-        });
-    };
-    login();
-});
+    commandList.push({
+        name: name,
+        action: action,
+        permission: perms
+    });
+}
+
+main();
