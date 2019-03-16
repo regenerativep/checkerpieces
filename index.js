@@ -9,12 +9,11 @@ const lang = require("./languages.js");
 const commandTrigger = "$";
 const userPageSize = 12;
 const bankpath = PATH.join(__dirname, "bank.json");
-const helppath = PATH.join(__dirname, "help.txt");
 const permissionLevels = {
     god: 4, admin: 3, member: 1, unregistered: 0
 };
-var helptext = FS.readFileSync(helppath, "utf8");
 var nameClosenessThreshold = 4;
+var defaultLanguage = "en-US";
 
 var getToken = function(cb)
 {
@@ -36,39 +35,39 @@ function main()
         console.log("failed to load bank");
     }
     bank.on("save", function() { saveBank(false); } );
-    addCommand("help", permissionLevels.unregistered, function (msg, parts) {
+    addCommand(lang.commandNames.help, permissionLevels.unregistered, function (msg, parts, language, name) {
         if(parts.length != 1)
         {
-            msg.channel.send("command \"help\" takes no arguments");
+            msg.channel.send(language.noargs.replace("...name...", name));
             return;
         }
-        msg.channel.send(helptext);
+        msg.channel.send(language.help);
     });
-    addCommand("register", permissionLevels.unregistered, function(msg, parts) {
+    addCommand(lang.commandNames.register, permissionLevels.unregistered, function(msg, parts, language, name) {
         if(parts.length != 1)
         {
-            msg.channel.send("command \"register\" takes no arguments");
+            msg.channel.send(language.noargs.replace("...name...", name));
             return;
         }
         var acc = bank.register(msg.author);
         if(acc == null)
         {
-            msg.channel.send("you have already been registered (__" + msg.author.username + "__)");
+            msg.channel.send(language.alreadyregistered + " (__" + msg.author.username + "__)");
             return;
         }
-        msg.channel.send("you have been registered (__" + acc.name + "__)");
+        msg.channel.send(language.justregistered + " (__" + acc.name + "__)");
         saveBank();
     });
-    addCommand("transfer", permissionLevels.member, function(msg, parts) {
+    addCommand(lang.commandNames.transfer, permissionLevels.member, function(msg, parts, language, name) {
         if(parts.length != 3)
         {
-            msg.channel.send("command \"transfer\" takes [amount: float] [recipient: string]")
+            msg.channel.send(language.transferargs);
             return;
         }
         var amount = parseFloat(parts[1]);
         if(isNaN(amount))
         {
-            msg.channel.send("bad amount");
+            msg.channel.send(language.badamount);
             return;
         }
         var recipient = bank.getAccountFromName(parts[2]);
@@ -82,31 +81,26 @@ function main()
         {
             if(trans[1] == 1)
             {
-                msg.channel.send("failed to find an account under your name. (__" + msg.author.username + "__)");
+                msg.channel.send(language.failedtofindyouraccount + " (__" + msg.author.username + "__)");
             }
-            msg.channel.send("transaction failed or something; im not sure what happened. yell at forrest if you can");
+            msg.channel.send(language.transactionuserfailed);
             return;
         }
         console.log(trans[0].toString());
         if(trans[0].perform())
         {
-            msg.channel.send("successfully transferred value to " + recipient.name);
+            msg.channel.send(language.transactionsuccess.replace("...recipient...", recipient.name));
         }
         else
         {
-            msg.channel.send("failed to transfer");
+            msg.channel.send(language.transactionfailed);
         }
         saveBank();
     });
-    addCommand("addvalue", permissionLevels.admin, function(msg, parts) {
-        if(!bank.isAdmin(msg.author.id))
-        {
-            msg.channel.send("no");
-            return;
-        }
+    addCommand(lang.commandNames.addvalue, permissionLevels.admin, function(msg, parts, language, name) {
         if(parts.length != 3)
         {
-            msg.channel.send("command \"addvalue\" takes [amount: int] [recipient: string]");
+            msg.channel.send(language.transferargs.replace("...name...", name));
             return;
         }
         var account = bank.getAccountFromName(parts[2]);
@@ -118,22 +112,17 @@ function main()
         var amount = parseFloat(parts[1]);
         if(isNaN(amount))
         {
-            msg.channel.send("bad amount");
+            msg.channel.send(language.badamount);
             return;
         }
         account.value += amount;
-        msg.channel.send("added " + amount + " to account (" + account.name + ")");
+        msg.channel.send(language.addedvalue.replace("...amount...", amount).replace("...account...", account.name));
         saveBank();
     });
-    addCommand("addadmin", permissionLevels.god, function(msg, parts) {
-        if(!bank.isAdmin(msg.author.id))
-        {
-            msg.channel.send("no");
-            return;
-        }
+    addCommand(lang.commandNames.addadmin, permissionLevels.god, function(msg, parts, language, name) {
         if(parts.length != 2)
         {
-            msg.channel.send("command \"addadmin\" takes [recipient: string]");
+            msg.channel.send(language.addadmin.replace("...name...", name));
             return;
         }
         let acc = bank.getAccount(parts[1]);
@@ -144,21 +133,16 @@ function main()
         }
         if(bank.isAdmin(id))
         {
-            msg.channel.send(acc.name + " is already admin");
+            msg.channel.send(language.alreadyadmin.replace("...name...", acc.name));
             return;
         }
         bank.admins.push(id);
-        msg.channel.send("added \"" + acc.name + "\" to admin list");
+        msg.channel.send(language.addadminsuccess.replace("...name...", acc.name));
     });
-    addCommand("removeadmin", permissionLevels.god, function(msg, parts) {
-        if(msg.author.id != "198652932802084864") //just for me :)
-        {
-            msg.channel.send("no");
-            return;
-        }
+    addCommand(lang.commandNames.removeadmin, permissionLevels.god, function(msg, parts, language, name) {
         if(parts.length != 2)
         {
-            msg.channel.send("command \"removeadmin\" takes [recipient: string]");
+            msg.channel.send(language.addadmin.replace("...name...", name));
             return;
         }
         let acc = bank.getAccount(parts[1]);
@@ -169,7 +153,7 @@ function main()
         }
         if(!bank.isAdmin(msg.author.id))
         {
-            msg.channel.send(acc.name + " is not admin");
+            msg.channel.send(language.notadmin.replace("...name...", acc.name));
             return;
         }
         let removedAdmin = false;
@@ -185,42 +169,42 @@ function main()
         }
         if(!removedAdmin)
         {
-            msg.channel.send("something went wrong in getting rid of the admin " + acc.name);
+            msg.channel.send(language.removeadminfail.replace("...name...", acc.name));
         }
         else
         {
-            msg.channel.send("removed admin " + acc.name);
+            msg.channel.send(language.removeadminsuccess.replace("...name...", acc.name));
         }
     });
-    addCommand("getvalue", permissionLevels.member, function(msg, parts) {
+    addCommand(lang.commandNames.getvalue, permissionLevels.member, function(msg, parts, language, name) {
         if(parts.length != 1)
         {
-            msg.channel.send("command \"getvalue\" takes no arguments");
+            msg.channel.send(language.noargs.replace("...name...", name));
             return;
         }
         let account = bank.getAccountFromId(msg.author.id);
         if(account == null)
         {
-            msg.channel.send("failed to find an account under your name, " + msg.author.username);
+            msg.channel.send(language.failedtofindyouraccount + " (" + msg.author.username + ")");
             return;
         }
-        msg.channel.send("you have " + formatValue(account.value) + " (__" + account.name + "__)");
+        msg.channel.send(language.valuehave.replace("...value...", formatValue(account.value)) + " (__" + account.name + "__)");
     });
-    addCommand("getactualvalue", permissionLevels.member, function(msg, parts) {
+    addCommand(lang.commandNames.getactualvalue, permissionLevels.member, function(msg, parts, language, name) {
         if(parts.length != 1)
         {
-            msg.channel.send("command \"getactualvalue\" takes no arguments");
+            msg.channel.send(language.noargs.replace("...name...", name));
             return;
         }
         var account = bank.getAccount(msg.author.id);
         if(account == null)
         {
-            msg.channel.send("failed to find an account under your name. (__" + msg.author.username + "__)");
+            msg.channel.send(language.failedtofindyouraccount + " (__" + msg.author.username + "__)");
             return;
         }
-        msg.channel.send("you have " + account.value + "cP (__" + account.name + "__)");
+        msg.channel.send(language.exactvaluehave.replace("...value...", account.value) + " (__" + account.name + "__)");
     });
-    addCommand("users", permissionLevels.unregistered, function(msg, parts) {
+    addCommand(lang.commandNames.users, permissionLevels.unregistered, function(msg, parts, language, name) {
         var num;
         if(parts.length == 1)
         {
@@ -231,19 +215,19 @@ function main()
             num = parseInt(parts[1]);
             if(num == NaN)
             {
-                msg.channel.send("there was a problem parsing your number (__" + username + "__)");
+                msg.channel.send(language.parseerror + " (__" + username + "__)");
                 return;
             }
             num -= 1;
             if(num < 0)
             {
-                msg.channel.send("thats not a thing (__" + username + "__)");
+                msg.channel.send(language.notathing + " (__" + username + "__)");
                 return;
             }
         }
         else
         {
-            msg.channel.send("command \"users\" takes [page: int (>0)]");
+            msg.channel.send(language.userargs.replace("...name...", name));
             return;
         }
         var formatUser = function(acc, num)
@@ -251,13 +235,13 @@ function main()
             var str = "[" + (num + 1) + "] " + formatValue(acc.value) + " - " + acc.name;
             if(acc.name == "void")
             {
-                str += " (if you put value here, that value will be deleted)";
+                str += " (" + language.valuewillbedeleted + ")";
             }
             return str;
         };
         var from = num * userPageSize;
         var to = from + userPageSize;
-        var str = "showing users from number " + (from + 1) + " to number " + to + "\n```\n";
+        var str = language.showingusers.replace("...from...", (from + 1)).replace("...to...", to) + "\n```\n";
         for(var i = from; i < to && i < bank.accounts.length; i++)
         {
             str += formatUser(bank.accounts[i], i) + "\n";
@@ -265,19 +249,19 @@ function main()
         str += "```";
         msg.channel.send(str);
     });
-    addCommand("changename", permissionLevels.member, function(msg, parts) {
+    addCommand(lang.commandNames.changename, permissionLevels.member, function(msg, parts, language, name) {
         if(parts.length == 2)
         {
             let acc = bank.getAccount(msg.author.id);
             let beforename = acc.name;
             let aftername = parts[1];
             aftername = bank.setName(acc, aftername);
-            msg.channel.send("changed your account name from \"" + beforename + "\" to \"" + aftername + "\"");
+            msg.channel.send(language.namechange.replace("...from...", beforename).replace("...to...", aftername));
             saveBank();
         }
         else
         {
-            msg.channel.send("command \"changename\" takes [newname: string]");
+            msg.channel.send(language.changenameargs.replace("...name...", name));
         }
     });
     client = new Discord.Client();
@@ -303,30 +287,54 @@ function main()
             for(let i in commandList)
             {
                 let command = commandList[i];
-                if(command.name == name)
+                let foundname = false;
+                for(let j in command.name)
+                {
+                    let cmdname = command.name[j];
+                    if(cmdname == name)
+                    {
+                        foundname = true;
+                        break;
+                    }
+                }
+                if(foundname)
                 {
                     let senderPermission = getPermissionLevel(msg.author.id);
-                    logMessage += ", " + senderPermission;
-                    if(command.permission <= senderPermission)
+                    let language;
+                    let acc = bank.getAccount(msg.author.id);
+                    if(acc != null)
                     {
-                        command.action(msg, parts);
+                        if(typeof acc.language === "undefined")
+                        {
+                            acc.language = defaultLanguage;
+                        }
+                        language = getLanguage(acc.language);
                     }
                     else
                     {
-                        let sendText = "insufficient permissions, ";
+                        language = getLanguage(defaultLanguage);
+                    }
+                    //logMessage += ", " + senderPermission;
+                    if(command.permission <= senderPermission)
+                    {
+                        command.action(msg, parts, language, parts[0]);
+                    }
+                    else
+                    {
+                        let sendText = language.insufficientpermissions + ", ";
                         switch(senderPermission)
                         {
                             case permissionLevels.god:
-                                sendText += "wut";
+                                sendText += language.permissionsentencegod;
                                 break;
                             case permissionLevels.admin:
-                                sendText += "you're an admin";
+                                sendText += language.permissionsentenceadmin;
                                 break;
                             case permissionLevels.member:
-                                sendText += "you're a member";
+                                sendText += language.permissionsentencemember;
                                 break;
                             case permissionLevels.unregistered:
-                                sendText += "you're unregistered";
+                                sendText += language.permissionsentenceunregistered;
                                 break;
                             default:
                                 sendText = sendText.substring(0, sendText.length - 2);
@@ -385,6 +393,18 @@ function saveBank(showSaveMessage)
             }
         }
     });
+}
+function getLanguage(name)
+{
+    for(let i in lang.languages)
+    {
+        let language = lang.languages[i];
+        if(language.name == name)
+        {
+            return language;
+        }
+    }
+    return getLanguage(defaultLanguage);
 }
 function formatValue(val)
 {
