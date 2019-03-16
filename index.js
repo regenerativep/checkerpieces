@@ -4,6 +4,7 @@ const PATH = require("path");
 const Discord = require("discord.js");
 const cleanup = require("node-cleanup");
 const Bank = require("./bank.js");
+const lang = require("./languages.js");
 
 const commandTrigger = "$";
 const userPageSize = 12;
